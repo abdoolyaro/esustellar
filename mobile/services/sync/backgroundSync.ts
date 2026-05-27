@@ -6,6 +6,8 @@
 import { AppState, AppStateStatus } from 'react-native';
 import { queryClient } from '../queryClient';
 import { groupsApi } from '../api/groupsApi';
+import { transactionsApi } from '../api/transactionsApi';
+import { notificationsApi } from '../api/notificationsApi';
 import { useAuthStore } from '../../store/authStore';
 import { useGroupsStore } from '../../stores/groupsStore';
 import { useNotificationsStore } from '../../stores/notificationsStore';
@@ -100,7 +102,7 @@ class BackgroundSyncService {
       }
 
       if (options.syncNotifications !== false) {
-        await this.syncNotifications();
+        await this.syncNotifications(wallet.address);
       }
 
       this.lastSyncTime = Date.now();
@@ -127,24 +129,23 @@ class BackgroundSyncService {
   /**
    * Sync transactions data
    */
-  private async syncTransactions(_userAddress: string) {
-    // Placeholder for transaction sync
-    // Would integrate with transaction API when available
-    console.log('[SyncService] Syncing transactions...');
+  private async syncTransactions(userAddress: string) {
+    const result = await transactionsApi.getUserTransactions(userAddress);
+    if (result.success && result.data) {
+      queryClient.setQueryData(['transactions', 'user', userAddress], result);
+      console.log('[SyncService] Transactions synced successfully');
+    }
   }
 
   /**
    * Sync notifications
    */
-  private async syncNotifications() {
-    // Placeholder for notification sync
-    // Would integrate with notification service when available
-    const { setNotifications } = useNotificationsStore.getState();
-    console.log('[SyncService] Syncing notifications...');
-    
-    // For now, just trigger a refresh
-    // In production, this would fetch from the notifications API
-    setNotifications(useNotificationsStore.getState().notifications);
+  private async syncNotifications(userAddress: string) {
+    const result = await notificationsApi.getUserNotifications(userAddress);
+    if (result.success && result.data) {
+      useNotificationsStore.getState().setNotifications(result.data);
+      console.log('[SyncService] Notifications synced successfully');
+    }
   }
 
   /**
