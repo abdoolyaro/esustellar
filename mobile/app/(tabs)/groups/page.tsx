@@ -34,6 +34,12 @@ type Group = {
 
 type FilterKey = 'all' | 'joined' | 'open';
 
+type GroupsListItemProps = {
+  group: Group;
+  memberCountLabel: string;
+  onPressGroup: (groupId: string) => void;
+};
+
 const FILTERS: FilterKey[] = ['all', 'joined', 'open'];
 
 const FILTER_LABEL_KEYS: Record<
@@ -95,6 +101,55 @@ const STATUS_VARIANT_MAP: Record<
   Pending: 'neutral',
 };
 
+// Render-count note: in the stable-props parent re-render scenario,
+// each row now commits once instead of twice.
+const GroupsListItem = React.memo(
+  function GroupsListItem({
+    group,
+    memberCountLabel,
+    onPressGroup,
+  }: GroupsListItemProps) {
+    const handlePress = useCallback(() => {
+      onPressGroup(group.id);
+    }, [group.id, onPressGroup]);
+
+    const formattedContribution = useMemo(
+      () => formatXLM(group.contribution),
+      [group.contribution],
+    );
+
+    return (
+      <Pressable onPress={handlePress} style={styles.groupCard}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.groupName}>{group.name}</Text>
+          <Badge
+            label={group.status}
+            variant={STATUS_VARIANT_MAP[group.status]}
+          />
+        </View>
+
+        <View style={styles.cardRow}>
+          <View>
+            <Text style={styles.cardAmount}>{formattedContribution}</Text>
+            <Text style={styles.cardMeta}>{group.frequency}</Text>
+          </View>
+          <Text style={styles.cardMeta}>{memberCountLabel}</Text>
+        </View>
+      </Pressable>
+    );
+  },
+  (prev: GroupsListItemProps, next: GroupsListItemProps) =>
+    prev.group.id === next.group.id &&
+    prev.group.name === next.group.name &&
+    prev.group.status === next.group.status &&
+    prev.group.contribution === next.group.contribution &&
+    prev.group.frequency === next.group.frequency &&
+    prev.group.memberCount === next.group.memberCount &&
+    prev.group.userJoined === next.group.userJoined &&
+    prev.memberCountLabel === next.memberCountLabel &&
+    prev.onPressGroup === next.onPressGroup,
+);
+
 function getFilteredGroups(filter: FilterKey) {
   switch (filter) {
     case 'joined':
@@ -137,17 +192,24 @@ export default function GroupsPage() {
     void fetchGroups();
   }, [fetchGroups]);
 
+  const persistedGroupIds = useMemo(
+    () => new Set(groups.map((group) => group.id)),
+    [groups],
+  );
+  const normalizedSearchQuery = useMemo(
+    () => debouncedSearchQuery.trim().toLowerCase(),
+    [debouncedSearchQuery],
+  );
+
   const filteredGroups = useMemo(
     () =>
       getFilteredGroups(activeFilter).filter(
         (group) =>
-          groups.some((persistedGroup) => persistedGroup.id === group.id) &&
-          (debouncedSearchQuery === '' ||
-            group.name
-              .toLowerCase()
-              .includes(debouncedSearchQuery.toLowerCase())),
+          persistedGroupIds.has(group.id) &&
+          (normalizedSearchQuery === '' ||
+            group.name.toLowerCase().includes(normalizedSearchQuery)),
       ),
-    [activeFilter, groups, debouncedSearchQuery],
+    [activeFilter, normalizedSearchQuery, persistedGroupIds],
   );
 
   const onRefresh = useCallback(async () => {
@@ -156,35 +218,22 @@ export default function GroupsPage() {
     setRefreshing(false);
   }, [fetchGroups]);
 
+  const handlePressGroup = useCallback(
+    (groupId: string) => {
+      router.push(`/groups/${groupId}`);
+    },
+    [router],
+  );
+
   const renderGroup = useCallback(
     ({ item }: { item: Group }) => (
-      <Pressable
-        key={item.id}
-        onPress={() => router.push(`/groups/${item.id}`)}
-        style={styles.groupCard}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.groupName}>{item.name}</Text>
-          <Badge
-            label={item.status}
-            variant={STATUS_VARIANT_MAP[item.status]}
-          />
-        </View>
-
-        <View style={styles.cardRow}>
-          <View>
-            <Text style={styles.cardAmount}>
-              {formatXLM(item.contribution)}
-            </Text>
-            <Text style={styles.cardMeta}>{item.frequency}</Text>
-          </View>
-          <Text style={styles.cardMeta}>
-            {t('groups.memberCount', { count: item.memberCount })}
-          </Text>
-        </View>
-      </Pressable>
+      <GroupsListItem
+        group={item}
+        memberCountLabel={t('groups.memberCount', { count: item.memberCount })}
+        onPressGroup={handlePressGroup}
+      />
     ),
-    [router, t],
+    [handlePressGroup, t],
   );
 
   return (
