@@ -90,7 +90,9 @@
     "pinRemoved": "PIN imeondolewa",
     "language": "Lugha",
     "languageLabel": "Chagua lugha ya programu yako",
-    "languageChangeSuccess": "Lugha imesasishwa."
+    "languageChangeSuccess": "Lugha imesasishwa.",
+    "haptics": "Mtetemo",
+    "hapticsDescription": "Tumia mtetemo mdogo kwa mwingiliano muhimu na mabadiliko ya hali."
   },
   "groups": {
     "title": "Vikundi",

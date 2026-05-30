@@ -6,7 +6,7 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
-import { triggerHapticFeedback } from '../../utils/haptics';
+import { triggerHapticFeedback } from '../../services/haptics/index';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost';
 type Size = 'sm' | 'md' | 'lg';
@@ -51,63 +51,69 @@ const padding: Record<Size, ViewStyle> = {
 
 const fontSize: Record<Size, number> = { sm: 13, md: 15, lg: 17 };
 
-const Button = React.memo<ButtonProps>(({
-  variant = 'primary',
-  size = 'md',
-  onPress,
-  disabled,
-  loading,
-  destructive,
-  style,
-  children,
-}) => {
-  const isDisabled = disabled || loading;
-
-  const handlePress = useCallback(() => {
-    if (!isDisabled && onPress) {
-      if (destructive) {
-        triggerHapticFeedback.heavy();
-      } else {
-        triggerHapticFeedback.light();
-      }
-      onPress();
-    }
-  }, [isDisabled, onPress, destructive]);
-
-  const buttonStyle = useMemo(() => [
-    styles.base,
-    padding[size],
-    {
-      backgroundColor: bg[variant],
-      borderColor: border[variant],
-      opacity: isDisabled ? 0.5 : 1,
-    },
+const Button = React.memo<ButtonProps>(
+  ({
+    variant = 'primary',
+    size = 'md',
+    onPress,
+    disabled,
+    loading,
+    destructive,
     style,
-  ], [size, variant, isDisabled, style]);
+    children,
+  }) => {
+    const isDisabled = disabled || loading;
 
-  const textStyle = useMemo(() => ({
-    color: textColor[variant],
-    fontSize: fontSize[size],
-    fontWeight: '600' as const,
-  }), [variant, size]);
+    const handlePress = useCallback(() => {
+      if (!isDisabled && onPress) {
+        if (destructive) {
+          triggerHapticFeedback.heavy();
+        } else {
+          triggerHapticFeedback.light();
+        }
+        onPress();
+      }
+    }, [isDisabled, onPress, destructive]);
 
-  return (
-    <TouchableOpacity
-      onPress={handlePress}
-      disabled={isDisabled}
-      style={buttonStyle}
-      activeOpacity={0.8}
-    >
-      {loading ? (
-        <ActivityIndicator color={textColor[variant]} size="small" />
-      ) : (
-        <Text style={textStyle}>
-          {children}
-        </Text>
-      )}
-    </TouchableOpacity>
-  );
-});
+    const buttonStyle = useMemo(
+      () => [
+        styles.base,
+        padding[size],
+        {
+          backgroundColor: bg[variant],
+          borderColor: border[variant],
+          opacity: isDisabled ? 0.5 : 1,
+        },
+        style,
+      ],
+      [size, variant, isDisabled, style],
+    );
+
+    const textStyle = useMemo(
+      () => ({
+        color: textColor[variant],
+        fontSize: fontSize[size],
+        fontWeight: '600' as const,
+      }),
+      [variant, size],
+    );
+
+    return (
+      <TouchableOpacity
+        onPress={handlePress}
+        disabled={isDisabled}
+        style={buttonStyle}
+        activeOpacity={0.8}
+      >
+        {loading ? (
+          <ActivityIndicator color={textColor[variant]} size="small" />
+        ) : (
+          <Text style={textStyle}>{children}</Text>
+        )}
+      </TouchableOpacity>
+    );
+  },
+);
 
 Button.displayName = 'Button';
 

@@ -90,7 +90,9 @@
     "pinRemoved": "PIN removed",
     "language": "Language",
     "languageLabel": "Choose your app language",
-    "languageChangeSuccess": "Language updated."
+    "languageChangeSuccess": "Language updated.",
+    "haptics": "Haptics",
+    "hapticsDescription": "Use subtle vibration feedback for important interactions and status changes."
   },
   "groups": {
     "title": "Groups",
