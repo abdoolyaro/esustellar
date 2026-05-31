@@ -15,6 +15,7 @@ import Constants from 'expo-constants';
 import { useTranslation } from 'react-i18next';
 
 import Button from '../../components/ui/Button';
+import WalletSwitcher from '../../components/wallet/WalletSwitcher';
 
 import {
   biometricService,
@@ -43,15 +44,17 @@ import {
   loadLanguage,
 } from '../../constants/i18n';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuthStore } from '../../store/authStore';
+import { getActiveWallet, WalletEntry } from '../../services/wallet/multiWallet';
+import * as Clipboard from 'expo-clipboard';
 import {
   loadHapticsPreference,
   setHapticsEnabled as persistHapticsEnabled,
   triggerHapticFeedback,
 } from '../../services/haptics';
+import { getJSEngine } from '../../utils/hermes';
 
 const BIOMETRIC_LOCK_KEY = 'biometricLockEnabled';
-const WALLET_ADDRESS =
-  'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -75,10 +78,13 @@ export default function SettingsScreen() {
 
   const [pinSet, setPinSet] = useState(false);
   const [pinLockoutRemainingMs, setPinLockoutRemainingMs] = useState(0);
+  const [activeWallet, setActiveWallet] = useState<WalletEntry | null>(null);
+  const [walletSwitcherVisible, setWalletSwitcherVisible] = useState(false);
 
   const [language, setLanguage] = useState(getLanguage());
   const [hapticsEnabled, setHapticsEnabledState] = useState(true);
   const [authenticating, setAuthenticating] = useState(false);
+  const setWallet = useAuthStore((state) => state.setWallet);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -95,6 +101,7 @@ export default function SettingsScreen() {
         storedLang,
         storedToggle,
         storedHaptics,
+        activeWalletEntry,
         storedAutoLock,
       ] = await Promise.all([
         biometricService.getCapability(),
@@ -103,6 +110,7 @@ export default function SettingsScreen() {
         loadLanguage(),
         AsyncStorage.getItem(BIOMETRIC_LOCK_KEY),
         loadHapticsPreference(),
+        getActiveWallet(),
         getAutoLockTimeout(),
       ]);
 
@@ -116,17 +124,30 @@ export default function SettingsScreen() {
       setBiometricEnabledLocal(storedToggle === 'true');
       setHapticsEnabledState(storedHaptics);
       setAutoLockTimeout(storedAutoLock);
+      setActiveWallet(activeWalletEntry);
+
+      if (activeWalletEntry) {
+        setWallet({
+          publicKey: activeWalletEntry.publicKey,
+          walletType: 'multiWallet',
+        });
+      }
+
       setLoading(false);
     })();
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [setWallet]);
 
   useFocusEffect(loadSecurityState);
 
   // ── Labels ─────────────────────────────────────────
+
+  const truncateKey = (key: string) => {
+    return `${key.slice(0, 6)}...${key.slice(-4)}`;
+  };
 
   const supportedLabel = useMemo(() => {
     if (
@@ -189,6 +210,11 @@ export default function SettingsScreen() {
 
   const handleLocalToggle = async (value: boolean) => {
     if (value) {
+      if (biometricCap.status !== SecurityStatus.AVAILABLE) {
+        Alert.alert('Unavailable', 'Set up biometrics first.');
+        return;
+      }
+
       const result = await biometricService.authenticate('Enable lock');
       if (!result.success) {
         void triggerHapticFeedback.error();
@@ -233,8 +259,14 @@ export default function SettingsScreen() {
   // ── Wallet copy ───────────────────────────────────
 
   const handleCopy = async () => {
+    if (!activeWallet?.publicKey) {
+      void triggerHapticFeedback.error();
+      setMessage('No active wallet available');
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(WALLET_ADDRESS);
+      await Clipboard.setStringAsync(activeWallet.publicKey);
       void triggerHapticFeedback.success();
       setMessage('Copied');
     } catch {
@@ -267,10 +299,32 @@ export default function SettingsScreen() {
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
-          <Text style={[styles.valueText, { color: colors.text }]}>
-            {WALLET_ADDRESS}
-          </Text>
-          <Button onPress={handleCopy}>Copy</Button>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Wallet</Text>
+          {activeWallet ? (
+            <>
+              <Text style={[styles.valueText, { color: colors.text }]}>
+                {activeWallet.label}
+              </Text>
+              <Text style={[styles.helperText, { color: colors.subtext }]}> 
+                {truncateKey(activeWallet.publicKey)}
+              </Text>
+            </>
+          ) : (
+            <Text style={[styles.helperText, { color: colors.subtext }]}>No active wallet selected.</Text>
+          )}
+
+          <View style={styles.walletActions}>
+            <Button onPress={() => setWalletSwitcherVisible(true)}>
+              Manage wallets
+            </Button>
+            <Button variant="outline" onPress={() => router.push('/wallet/add')}>
+              Add wallet
+            </Button>
+          </View>
+
+          <Button onPress={handleCopy} disabled={!activeWallet}>
+            Copy address
+          </Button>
         </View>
 
         {/* Language */}
@@ -368,7 +422,7 @@ export default function SettingsScreen() {
           </Button>
         </View>
 
-        {/* Simple Lock Toggle */}
+        {/* Biometric Lock */}
         <View
           style={[
             styles.section,
@@ -376,11 +430,15 @@ export default function SettingsScreen() {
           ]}
         >
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Biometric Lock
+            Use Biometric Lock
+          </Text>
+          <Text style={[styles.helperText, { color: colors.subtext }]}>
+            Protect the app when it returns from the background.
           </Text>
           <Switch
             value={biometricEnabledLocal}
             onValueChange={handleLocalToggle}
+            disabled={biometricCap.status !== SecurityStatus.AVAILABLE}
           />
         </View>
 
@@ -414,6 +472,19 @@ export default function SettingsScreen() {
             </Text>
           )}
         </View>
+
+        <WalletSwitcher
+          visible={walletSwitcherVisible}
+          onClose={() => setWalletSwitcherVisible(false)}
+          onWalletChanged={(wallet) => {
+            setActiveWallet(wallet);
+            setWallet({ publicKey: wallet.publicKey, walletType: 'multiWallet' });
+          }}
+          onAddWallet={() => {
+            setWalletSwitcherVisible(false);
+            router.push('/wallet/add');
+          }}
+        />
 
         {/* Wallet Recovery */}
         <View
@@ -478,8 +549,29 @@ export default function SettingsScreen() {
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Legal
+          </Text>
+          <Button onPress={() => router.push('/legal/terms')}>
+            Terms of Service
+          </Button>
+          <Button onPress={() => router.push('/legal/privacy')}>
+            Privacy Policy
+          </Button>
+        </View>
+
+        {/* Version */}
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
           <Text style={[styles.helperText, { color: colors.subtext }]}>
             Version: {Constants.expoConfig?.version}
+          </Text>
+          <Text style={[styles.helperText, { color: colors.subtext }]}>
+            JS Engine: {getJSEngine()}
           </Text>
         </View>
 
@@ -521,6 +613,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  walletActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
   pill: {
     borderWidth: 1,
     borderRadius: 999,
@@ -528,3 +626,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 });
+

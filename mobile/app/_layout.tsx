@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   AppState,
   AppStateStatus,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -24,6 +25,9 @@ import { biometricService } from '../services/security';
 import { registerAppUnlockHandler } from '../services/security/appLock';
 import { pinService } from '../services/security/pinService';
 import { logger } from '../services/logger';
+import { registerBackgroundSyncScheduler } from '../services/sync/scheduler';
+import { useAuthStore } from '../store/authStore';
+import { getActiveWallet } from '../services/wallet/multiWallet';
 
 const ONBOARDING_KEY = 'onboardingComplete';
 const BIOMETRIC_LOCK_KEY = 'biometricLockEnabled';
@@ -59,6 +63,7 @@ function RootLayoutContent() {
     if (biometricEnabled) {
       const result = await biometricService.authenticate(
         t('lock.biometricPrompt', { appName: t('common.appName') }),
+        true,
       );
 
       if (result.success) {
@@ -89,6 +94,11 @@ function RootLayoutContent() {
     });
   }, []);
 
+  const openPinFallback = useCallback(() => {
+    setLocked(false);
+    router.push('/security/enter-pin?reason=biometric-fallback');
+  }, [router]);
+
   useEffect(() => {
     const subscription = AppState.addEventListener(
       'change',
@@ -104,12 +114,14 @@ function RootLayoutContent() {
           nextState === 'active' &&
           (prev === 'background' || prev === 'inactive')
         ) {
-          setMasked(false);
           const enabled = await AsyncStorage.getItem(BIOMETRIC_LOCK_KEY);
 
           if (enabled === 'true') {
             setLocked(true);
+            setMasked(false);
             await unlockApp();
+          } else {
+            setMasked(false);
           }
         }
       },
@@ -129,6 +141,10 @@ function RootLayoutContent() {
       await loadLanguage();
       logger.info('RootLayout', 'App initializing');
 
+      registerBackgroundSyncScheduler().catch((err) =>
+        logger.warn('RootLayout', 'Background sync registration failed', err),
+      );
+
       const onboardingComplete = await AsyncStorage.getItem(ONBOARDING_KEY);
 
       if (!active) {
@@ -147,6 +163,37 @@ function RootLayoutContent() {
       active = false;
     };
   }, [router]);
+
+  const logout = useAuthStore((state) => state.logout);
+  const authWallet = useAuthStore((state) => state.wallet);
+  const setAuthWallet = useAuthStore((state) => state.setWallet);
+
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      const activeWallet = await getActiveWallet();
+
+      if (!active) {
+        return;
+      }
+
+      if (activeWallet) {
+        if (!authWallet || authWallet.publicKey !== activeWallet.publicKey) {
+          setAuthWallet({
+            publicKey: activeWallet.publicKey,
+            walletType: 'multiWallet',
+          });
+        }
+      } else if (authWallet?.walletType === 'multiWallet') {
+        logout();
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [authWallet, logout, setAuthWallet]);
 
   const dismissBanner = useCallback(() => {
     if (bannerTimerRef.current) {
@@ -257,6 +304,9 @@ function RootLayoutContent() {
           <Text style={styles.lockHint} onPress={() => void unlockApp()}>
             {t('lock.tapToUnlock')}
           </Text>
+          <Pressable style={styles.lockButton} onPress={openPinFallback}>
+            <Text style={styles.lockButtonText}>Use PIN</Text>
+          </Pressable>
         </View>
       )}
     </View>
@@ -300,5 +350,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     marginTop: 12,
+  },
+  lockButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  lockButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
