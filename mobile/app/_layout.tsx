@@ -24,6 +24,8 @@ import { queryClient } from '../services/queryClient';
 import { biometricService } from '../services/security';
 import { logger } from '../services/logger';
 import { registerBackgroundSyncScheduler } from '../services/sync/scheduler';
+import { useAuthStore } from '../store/authStore';
+import { getActiveWallet } from '../services/wallet/multiWallet';
 
 const ONBOARDING_KEY = 'onboardingComplete';
 const BIOMETRIC_LOCK_KEY = 'biometricLockEnabled';
@@ -138,6 +140,34 @@ function RootLayoutContent() {
       active = false;
     };
   }, [router]);
+
+  const logout = useAuthStore((state) => state.logout);
+  const authWallet = useAuthStore((state) => state.wallet);
+  const setAuthWallet = useAuthStore((state) => state.setWallet);
+
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      const activeWallet = await getActiveWallet();
+
+      if (!active) {
+        return;
+      }
+
+      if (activeWallet) {
+        if (!authWallet || authWallet.publicKey !== activeWallet.publicKey) {
+          setAuthWallet({ publicKey: activeWallet.publicKey, walletType: 'multiWallet' });
+        }
+      } else if (authWallet?.walletType === 'multiWallet') {
+        logout();
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [authWallet, logout, setAuthWallet]);
 
   const dismissBanner = useCallback(() => {
     if (bannerTimerRef.current) {
