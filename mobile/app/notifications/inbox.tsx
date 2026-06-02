@@ -15,8 +15,9 @@ import { useNotificationsStore } from '../../stores/notificationsStore';
 import { useUserNotifications, useMarkAllNotificationsRead } from '../../hooks/useNotifications';
 import { useRefresh } from '../../hooks/useRefresh';
 import { NotificationItem } from '../../components/NotificationItem';
+import { NotificationCategoryFilter } from '../../components/notifications/NotificationCategoryFilter';
 import { EmptyState } from '../../components/ui';
-import { Notification } from '../../types/notification';
+import { Notification, NotificationCategory } from '../../types/notification';
 
 const sortNotifications = (items: Notification[]) =>
   [...items].sort(
@@ -29,8 +30,11 @@ export default function NotificationInboxScreen() {
   const wallet = useAuthStore((state) => state.wallet);
   const notifications = useNotificationsStore((state) => state.notifications);
   const unreadCount = useNotificationsStore((state) => state.unreadCount);
+  const selectedCategory = useNotificationsStore((state) => state.selectedCategory);
   const setNotifications = useNotificationsStore((state) => state.setNotifications);
   const markAllRead = useNotificationsStore((state) => state.markAllRead);
+  const setSelectedCategory = useNotificationsStore((state) => state.setSelectedCategory);
+  const getFilteredNotifications = useNotificationsStore((state) => state.getFilteredNotifications);
 
   const userAddress = wallet?.publicKey ?? '';
   const { data, refetch } = useUserNotifications(userAddress);
@@ -52,9 +56,13 @@ export default function NotificationInboxScreen() {
 
   const { refreshing, onRefresh } = useRefresh(fetchNotifications);
 
+  const filteredNotifications = useMemo(() => {
+    return getFilteredNotifications();
+  }, [getFilteredNotifications]);
+
   const sortedNotifications = useMemo(
-    () => sortNotifications(notifications),
-    [notifications],
+    () => sortNotifications(filteredNotifications),
+    [filteredNotifications],
   );
 
   const handleMarkAllAsRead = useCallback(async () => {
@@ -63,6 +71,13 @@ export default function NotificationInboxScreen() {
     // Sync with backend
     await markAllMutation.mutateAsync(userAddress);
   }, [markAllRead, userAddress, markAllMutation]);
+
+  const handleCategoryChange = useCallback(
+    (category: NotificationCategory) => {
+      setSelectedCategory(category);
+    },
+    [setSelectedCategory],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: Notification }) => <NotificationItem item={item} />,
@@ -113,6 +128,10 @@ export default function NotificationInboxScreen() {
             <Text style={[styles.subtitle, { color: colors.subtext }]}> 
               {t('notifications.subtitle')}
             </Text>
+            <NotificationCategoryFilter
+              selectedCategory={selectedCategory}
+              onCategoryChange={handleCategoryChange}
+            />
           </View>
         )}
         ListEmptyComponent={
@@ -160,6 +179,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     lineHeight: 22,
+    marginBottom: 12,
   },
   listContainer: {
     paddingBottom: 24,

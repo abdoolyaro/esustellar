@@ -116,6 +116,13 @@
     "scheduleGroupDetail": "Panga Arifa ya Maelezo ya Kikundi",
     "scheduleFallback": "Panga Arifa ya Njia Mbadala",
     "markAllAsRead": "Weka alama zote kama zimesomwa",
+    "categories": {
+      "all": "Zote",
+      "payments": "Malipo",
+      "members": "Wanachama",
+      "updates": "Masasisho",
+      "groups": "Vikundi"
+    },
     "contributionDueTitle": "Mchango wako umewadia",
     "contributionDueBody": "Gusa kufungua skrini ya maelezo ya kikundi.",
     "unknownDestinationTitle": "Mahali pasipojulikana",

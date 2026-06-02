@@ -90,6 +90,13 @@
     "scheduleGroupDetail": "Planifier la notification des détails du groupe",
     "scheduleFallback": "Planifier la notification de secours",
     "markAllAsRead": "Marquer tout comme lu",
+    "categories": {
+      "all": "Tous",
+      "payments": "Paiements",
+      "members": "Membres",
+      "updates": "Mises à jour",
+      "groups": "Groupes"
+    },
     "contributionDueTitle": "Contribution due",
     "contributionDueBody": "Appuyez pour ouvrir l'écran des détails du groupe.",
     "unknownDestinationTitle": "Destination inconnue",

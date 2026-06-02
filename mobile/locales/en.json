@@ -116,6 +116,13 @@
     "scheduleGroupDetail": "Schedule Group Detail Notification",
     "scheduleFallback": "Schedule Fallback Notification",
     "markAllAsRead": "Mark all as read",
+    "categories": {
+      "all": "All",
+      "payments": "Payments",
+      "members": "Members",
+      "updates": "Updates",
+      "groups": "Groups"
+    },
     "contributionDueTitle": "Contribution due",
     "contributionDueBody": "Tap to open the group detail screen.",
     "unknownDestinationTitle": "Unknown destination",

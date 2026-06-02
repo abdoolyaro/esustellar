@@ -90,6 +90,13 @@
     "scheduleGroupDetail": "Programar notificación de detalles del grupo",
     "scheduleFallback": "Programar notificación de respaldo",
     "markAllAsRead": "Marcar todas como leídas",
+    "categories": {
+      "all": "Todas",
+      "payments": "Pagos",
+      "members": "Miembros",
+      "updates": "Actualizaciones",
+      "groups": "Grupos"
+    },
     "contributionDueTitle": "Contribución vencida",
     "contributionDueBody": "Toca para abrir la pantalla de detalles del grupo.",
     "unknownDestinationTitle": "Destino desconocido",

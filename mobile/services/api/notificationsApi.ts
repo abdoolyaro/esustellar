@@ -32,6 +32,7 @@ class NotificationsApiService {
           message: 'Your monthly contribution to Family Savings Circle is due.',
           read: false,
           createdAt: new Date().toISOString(),
+          category: 'payments',
         },
         {
           id: 'notif_2',
@@ -40,6 +41,25 @@ class NotificationsApiService {
           message: 'You have received a payout of 600 XLM from Investment Club.',
           read: false,
           createdAt: new Date().toISOString(),
+          category: 'payments',
+        },
+        {
+          id: 'notif_3',
+          type: 'member',
+          title: 'New Member Joined',
+          message: 'John Doe has joined Community Savings Group.',
+          read: true,
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          category: 'members',
+        },
+        {
+          id: 'notif_4',
+          type: 'status',
+          title: 'Group Update',
+          message: 'Your group has reached 80% of the target savings goal.',
+          read: true,
+          createdAt: new Date(Date.now() - 172800000).toISOString(),
+          category: 'updates',
         },
       ];
 
