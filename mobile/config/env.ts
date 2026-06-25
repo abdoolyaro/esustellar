@@ -1,62 +1,38 @@
-/**
- * Centralised, validated application configuration.
- *
- * All values come from `EXPO_PUBLIC_*` environment variables so they are
- * inlined at build time by Expo's bundler and safe to read on the client.
- *
- * Environment files (loaded in priority order by Expo):
- *   .env.local          – local overrides (git-ignored)
- *   .env.<environment>  – e.g. .env.development / .env.staging / .env.production
- *   .env               – shared defaults
- *
- * Switch environments by setting APP_VARIANT in eas.json or via:
- *   npx expo start --env staging
- */
 
-type Environment = 'development' | 'staging' | 'production';
+export type Environment = 'development' | 'staging' | 'production';
 
 interface AppConfig {
-  /** Current runtime environment. */
-  env: Environment;
-  /** Base URL for the EsuStellar REST API. */
-  apiUrl: string;
-  /** Stellar network name ('testnet' | 'mainnet'). */
-  stellarNetwork: string;
-  /** Horizon server base URL. */
-  stellarHorizonUrl: string;
-  /** Stellar network passphrase used when signing transactions. */
-  stellarNetworkPassphrase: string;
+  ENV: Environment;
+  API_URL: string;
+  IS_PRODUCTION: boolean;
 }
 
-function requireEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(
-      `[config] Missing required environment variable: ${key}. ` +
-        'Copy .env.example to .env.local and fill in the values.',
-    );
-  }
-  return value;
-}
-
-function parseEnvironment(raw: string | undefined): Environment {
-  if (raw === 'staging' || raw === 'production') return raw;
-  return 'development';
-}
-
-const config: AppConfig = {
-  env: parseEnvironment(process.env.EXPO_PUBLIC_ENV),
-  apiUrl: requireEnv('EXPO_PUBLIC_API_URL'),
-  stellarNetwork: requireEnv('EXPO_PUBLIC_STELLAR_NETWORK'),
-  stellarHorizonUrl: requireEnv('EXPO_PUBLIC_STELLAR_HORIZON_URL'),
-  stellarNetworkPassphrase: requireEnv('EXPO_PUBLIC_STELLAR_NETWORK_PASSPHRASE'),
+// 1. Separate Configurations per Environment
+const configs: Record<Environment, AppConfig> = {
+  development: {
+    ENV: 'development',
+    API_URL: process.env.EXPO_PUBLIC_DEV_API_URL || 'https://api-dev.esustellar.com',
+    IS_PRODUCTION: false,
+  },
+  staging: {
+    ENV: 'staging',
+    API_URL: process.env.EXPO_PUBLIC_STAGE_API_URL || 'https://api-staging.esustellar.com',
+    IS_PRODUCTION: false,
+  },
+  production: {
+    ENV: 'production',
+    API_URL: process.env.EXPO_PUBLIC_PROD_API_URL || 'https://api.esustellar.com',
+    IS_PRODUCTION: true,
+  },
 };
 
-/** Returns true when running against the development environment. */
-export const isDev = (): boolean => config.env === 'development';
-/** Returns true when running against the staging environment. */
-export const isStaging = (): boolean => config.env === 'staging';
-/** Returns true when running against the production environment. */
-export const isProd = (): boolean => config.env === 'production';
+// 2. Identify Current Active Environment Safely
+const currentEnv: Environment = (process.env.EXPO_PUBLIC_APP_VARIANT as Environment) || 'development';
 
-export default config;
+// 3. Environment Variable Validation Check
+const config = configs[currentEnv];
+if (!config.API_URL) {
+  throw new Error(`[Env Configuration Error]: Missing API URL configuration for environment: ${currentEnv}`);
+}
+
+export const env = config;
