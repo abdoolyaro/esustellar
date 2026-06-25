@@ -4,3 +4,6 @@ export { useGroupsStore } from './groupsStore';
 export { useUserStore } from './userStore';
 export { useWalletStore } from './walletStore';
 export type { WalletState } from './walletStore';
+
+export { useKillSwitchStore } from './killSwitchStore';
+export type { KillSwitch } from '../services/killSwitch';

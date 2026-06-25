@@ -12,6 +12,8 @@ import { triggerHapticFeedback } from '../../utils/haptics';
 import { logger } from '../../services/logger';
 import WalletSwitcher from '../../components/wallet/WalletSwitcher';
 import { getActiveWallet, WalletEntry } from '../../services/wallet/multiWallet';
+import { useKillSwitchStore } from '../../stores/killSwitchStore';
+import { useKillSwitch } from '../../hooks/useKillSwitch';
 
 function getGreeting(hour: number, t: any): string {
   if (hour < 12) return t('home.goodMorning');
@@ -124,6 +126,16 @@ export default function HomeScreen() {
 
   const { refreshing, onRefresh } = useRefresh(fetchData);
 
+  const startPolling = useKillSwitchStore((s) => s.startPolling);
+  const stopPolling = useKillSwitchStore((s) => s.stopPolling);
+  const contributions = useKillSwitch('contributions');
+  const groupCreation = useKillSwitch('group-creation');
+
+  useEffect(() => {
+    startPolling();
+    return () => stopPolling();
+  }, [startPolling, stopPolling]);
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -144,6 +156,55 @@ export default function HomeScreen() {
       </View>
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.sectionLabel, { color: colors.subtext }]}>{t('home.quickActions')}</Text>
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={[
+              styles.quickActionButton,
+              { backgroundColor: contributions.isEnabled ? colors.accent : colors.border },
+            ]}
+            disabled={!contributions.isEnabled}
+            onPress={() => {
+              triggerHapticFeedback.selection();
+              router.push('/contributions/wallet');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Contribute"
+            accessibilityState={{ disabled: !contributions.isEnabled }}
+          >
+            <Text style={[styles.quickActionLabel, { color: contributions.isEnabled ? '#fff' : colors.subtext }]}>
+              Contribute
+            </Text>
+          </TouchableOpacity>
+          {!contributions.isEnabled && (
+            <Text style={[styles.killSwitchMessage, { color: colors.subtext }]}>
+              {contributions.disabledMessage}
+            </Text>
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.quickActionButton,
+              { backgroundColor: groupCreation.isEnabled ? colors.accent : colors.border },
+            ]}
+            disabled={!groupCreation.isEnabled}
+            onPress={() => {
+              triggerHapticFeedback.selection();
+              router.push('/groups/create');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Create group"
+            accessibilityState={{ disabled: !groupCreation.isEnabled }}
+          >
+            <Text style={[styles.quickActionLabel, { color: groupCreation.isEnabled ? '#fff' : colors.subtext }]}>
+              New Group
+            </Text>
+          </TouchableOpacity>
+          {!groupCreation.isEnabled && (
+            <Text style={[styles.killSwitchMessage, { color: colors.subtext }]}>
+              {groupCreation.disabledMessage}
+            </Text>
+          )}
+        </View>
       </View>
     </ScrollView>
   );
@@ -174,4 +235,24 @@ const styles = StyleSheet.create({
   },
   sectionLabel: { fontSize: 13, marginBottom: 4 },
   sectionValue: { fontSize: 24, fontWeight: '700' },
+  quickActions: {
+    marginTop: 12,
+    gap: 10,
+  },
+  quickActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 10,
+    gap: 10,
+  },
+  quickActionLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  killSwitchMessage: {
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
 });
